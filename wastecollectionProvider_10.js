@@ -1,4 +1,4 @@
-//<provider>10</provider><version>1.0.1</version><parms>"city,streetName"</parms>
+//<provider>10</provider><version>1.0.2</version><parms>"city,streetName"</parms>
 //provider limburg.net testdata: Hasselt Bakkerslaan
 
 	function readCalendar(wasteZipcode, wasteHouseNr, extraDates, enableCreateICS, wasteICSId, wasteStreet, wasteStreetName, wasteCity, wasteFullICSUrl) {
@@ -7,22 +7,11 @@
 		var wasteType = "";
 		var limburgAfvalbeheerDates = [];
 
-    		var d = new Date();
-        	var currentMonth = '' + (d.getMonth() + 1);
-        	var currentYear = d.getFullYear();
-
-		if (d.getMonth() == 11) {
-    			var nextMonthM = "01";
-			var nextMonthY = d.getFullYear() + 1;
-		} else {
-    			var nextMonthM = d.getMonth() + 2;
-			var nextMonthY = d.getFullYear();
-		}	
-
 			// retrieve city id
 
 		var xmlhttp = new XMLHttpRequest();
 		xmlhttp.onreadystatechange = function() {
+			
 			if (xmlhttp.readyState == XMLHttpRequest.DONE) {
 				
 				if (xmlhttp.responseText !== "[]") {
@@ -38,6 +27,7 @@
 					var xmlhttp2 = new XMLHttpRequest();
 					xmlhttp2.onreadystatechange = function() {
 						if (xmlhttp2.readyState == XMLHttpRequest.DONE) {
+
 							var i = xmlhttp2.responseText.indexOf("}");
 							var streetNumbers = JSON.parse(xmlhttp2.responseText.substring(1,i+1));
 							if (streetNumbers["nummer"]) {
@@ -45,43 +35,48 @@
 									wasteStreetName = streetNumbers["naam"];
 								}
 
-									// retrieve collection dates current month
+									// retrieve collection dates
 
 								var xmlhttp3 = new XMLHttpRequest();
 								xmlhttp3.onreadystatechange = function() {
 									if (xmlhttp3.readyState == XMLHttpRequest.DONE) {
-										var collectionDates = JSON.parse(xmlhttp3.responseText);
-										if (collectionDates["ophalingen"]["lijstVanOphaalDagen"].length > 0) {
-											for (var i = 0; i < collectionDates["ophalingen"]["lijstVanOphaalDagen"].length; i++) {
-												wasteType = wasteTypeLimburg(collectionDates["activiteitenLegende"][collectionDates["ophalingen"]["lijstVanOphaalDagen"][i]["activiteitCode"]]["omschrijving"].substring(0,3));
-												limburgAfvalbeheerDates.push(collectionDates["ophalingen"]["lijstVanOphaalDagen"][i]["datum"].substring(0,10) + "," + wasteType);
-											}
+										var aNode = xmlhttp3.responseText;
+
+											// read specific waste collection dates
+
+										i = aNode.indexOf("BEGIN:VEVENT")
+										i = aNode.indexOf("DTSTART", i);
+										var j = 0;
+
+										if (i > 0) {
+											if (aNode.substring(i, i+18) == "DTSTART;VALUE=DATE") i = i + 11;
 										}
 
-											// retrieve collection dates next month
+										if ( i > 0 ) {
+											while (i > 0) {
+												j = aNode.indexOf("SUMMARY", i);
 
-										var xmlhttp4 = new XMLHttpRequest();
-										xmlhttp4.onreadystatechange = function() {
-											if (xmlhttp4.readyState == XMLHttpRequest.DONE) {
-												var collectionDates = JSON.parse(xmlhttp4.responseText);
-												if (collectionDates["ophalingen"]["lijstVanOphaalDagen"].length > 0) {
-													for (var i = 0; i < collectionDates["ophalingen"]["lijstVanOphaalDagen"].length; i++) {
-														wasteType = wasteTypeLimburg(collectionDates["activiteitenLegende"][collectionDates["ophalingen"]["lijstVanOphaalDagen"][i]["activiteitCode"]]["omschrijving"].substring(0,3));
-														limburgAfvalbeheerDates.push(collectionDates["ophalingen"]["lijstVanOphaalDagen"][i]["datum"].substring(0,10) + "," + wasteType);
+												wasteType = wasteTypeLimburg(aNode.substring(j+8, j+11));
+												limburgAfvalbeheerDates.push(aNode.substring(i+8, i+12) + "-" + aNode.substring(i+12, i+14) + "-" + aNode.substring(i+14, i+16) + "," + wasteType);
+				
+												i = aNode.indexOf("BEGIN:VEVENT", j);  // skip VALARMS
+												if (i > 0) {
+													i = aNode.indexOf("DTSTART", i);
+													if (i > 0) {
+														if (aNode.substring(i, i+18) == "DTSTART;VALUE=DATE") i = i + 11;
 													}
 												}
-												var tmp = sortArray2(limburgAfvalbeheerDates, extraDates);
-												for (i = 0; i < tmp.length; i++) {
-													wasteDatesString = wasteDatesString + tmp[i] + "\n";
-												}
-												writeWasteDates(wasteDatesString, enableCreateICS);
 											}
 										}
-										xmlhttp4.open("GET", "https://limburg.net/api-proxy/public/kalender/" + cityNumbers["nisCode"] + "/" + nextMonthY + "-" + nextMonthM + "?straatNummer=" + streetNumbers["nummer"] + "&huisNummer=" + wasteHouseNr, true);
-										xmlhttp4.send();
+										var tmp = sortArray2(limburgAfvalbeheerDates, extraDates);
+
+										for (i = 0; i < tmp.length; i++) {
+											wasteDatesString = wasteDatesString + tmp[i] + "\n";
+										}
+										writeWasteDates(wasteDatesString, enableCreateICS);
 									}
 								}
-								xmlhttp3.open("GET", "https://limburg.net/api-proxy/public/kalender/" + cityNumbers["nisCode"] + "/" + currentYear + "-" + currentMonth + "?straatNummer=" + streetNumbers["nummer"] + "&huisNummer=" + wasteHouseNr, true);
+								xmlhttp3.open("GET", "https://www.limburg.net/api-proxy/public/kalender-download/ical/" + cityNumbers["nisCode"] + "?straatNummer=" + streetNumbers["nummer"], true);
 								xmlhttp3.send();
 							}
 						}
@@ -103,6 +98,8 @@
 			case "Pap": return 2;		//papier en karton
 			case "Pmd": return 1;		//plastic metaal drankpakken
 			case "tui": return 4;		//tuinafval
+			case "ker": return 4;		//tuinafval - kerstboom
+
 			default: break;
 		}
 		return "?";
