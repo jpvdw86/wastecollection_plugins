@@ -1,4 +1,4 @@
-//<provider>33</provider><version>2.0.1</version><parms>"Zipcode","HouseNr"</parms>
+//<provider>33</provider><version>2.0.2</version><parms>"Zipcode","HouseNr"</parms>
 //provider homeassistant API (thanks to heyajohnny) testdata: https://trashapi.azurewebsites.net/trash?ZipCode=2992DL&HouseNumber=80&ShowWholeYear=true
 
 	function readCalendar(wasteZipcode, wasteHouseNr, extraDates, enableCreateICS, wasteICSId, wasteStreet, wasteStreetName, wasteCity, wasteFullICSUrl) {
@@ -42,8 +42,9 @@
 			case "Takken": return 4;
 			case "Papier": return 2;
 			case "Pbd": return 1;
-                        case "Kca": return 7;
-                        case "Textiel": return 5;
+            case "Kca": return 7;
+            case "Textiel": return 5;
+	        case "Grofvuil": return 8;
 			default: break;
 		}
 		return "?";
